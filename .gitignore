@@ -1,0 +1,9 @@
+*.
+
+*.pb.h
+*.pb.o
+
+*.o
+
+server
+client

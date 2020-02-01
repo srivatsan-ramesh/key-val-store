@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_package = "ex.grpc";
+
+package keyvalue;
+
+// Defines the service
+service KeyValue {
+    // Function invoked to send the request
+    rpc set (Entity) returns (Result) {}
+    rpc get (Key) returns (Value) {}
+}
+
+message Entity {
+    string key = 1;
+    string value = 2;
+}
+
+message Key {
+    string key = 1;
+}
+
+message Value {
+    string value = 1;
+}
+
+// The response message containing response
+message Result {
+    bool result = 1;
+}
