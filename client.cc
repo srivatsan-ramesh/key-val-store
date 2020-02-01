@@ -70,15 +70,30 @@ void Run() {
     );
 
     bool response;
-
-    response = client.set("Hello", "World");
-    std::cout << "Response for Set " << response << std::endl;
-
-    std::string value = client.get("Hello");
-    std::cout << "Response for Get " << value << std::endl;
+    while(1) {
+        char c;
+        std::cin>>c;
+        std::string key, value;
+        switch(c) {
+            case 's': std::cin>>key>>value;
+                response = client.set(key, value);
+                std::cout << response << std::endl;
+                break;
+            case 'g': std::cin>>key;
+                value = client.get(key);
+                std::cout << value << std::endl;
+                break;
+            case 'e':
+                exit(0);
+        }
+    }
 }
 
 int main(int argc, char* argv[]){
+    std::cout<<"Commands to set, get and exit"<<std::endl;
+    std::cout<<"s <key> <value>"<<std::endl;
+    std::cout<<"g <key>"<<std::endl;
+    std::cout<<"e"<<std::endl;
     Run();
 
     return 0;
