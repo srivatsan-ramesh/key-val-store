@@ -1,5 +1,5 @@
 LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
-           -lgrpc++_reflection \
+           -lgrpc++_reflection -lpthread \
            -ldl
 
 CXX = g++
@@ -14,7 +14,7 @@ all: client server
 client: key_value.pb.o key_value.grpc.pb.o client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-server: key_value.pb.o key_value.grpc.pb.o server.o
+server: concurrent_trie.o key_value.pb.o key_value.grpc.pb.o server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto

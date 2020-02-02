@@ -1,9 +1,11 @@
 #include <string>
+#include <vector>
 
 #include <grpcpp/grpcpp.h>
 #include "key_value.grpc.pb.h"
 
 using grpc::Channel;
+using grpc::ClientReader;
 using grpc::ClientContext;
 using grpc::Status;
 
@@ -56,6 +58,30 @@ class KeyValueClient {
         }
     }
 
+    std::vector<std::pair<std::string, std::string> > getPrefix(std::string key) {
+        Key request;
+
+        request.set_key(key);
+
+        Entity entity;
+
+        ClientContext context;
+
+        std::unique_ptr<ClientReader<Entity> > reader(
+            stub_->getPrefix(&context, request));
+        
+        std::vector<std::pair<std::string, std::string> > result;
+        while (reader->Read(&entity)) {
+            result.push_back(make_pair(entity.key(), entity.value()));
+        }
+        Status status = reader->Finish();
+        if (status.ok()) {
+        } else {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        }
+        return result;
+    }
+
     private:
         std::unique_ptr<KeyValue::Stub> stub_;
 };
@@ -74,6 +100,7 @@ void Run() {
         char c;
         std::cin>>c;
         std::string key, value;
+        std::vector<std::pair<std::string, std::string> > values;
         switch(c) {
             case 's': std::cin>>key>>value;
                 response = client.set(key, value);
@@ -82,6 +109,12 @@ void Run() {
             case 'g': std::cin>>key;
                 value = client.get(key);
                 std::cout << value << std::endl;
+                break;
+            case 'p': std::cin>>key;
+                values = client.getPrefix(key);
+                for(std::pair<std::string, std::string> val : values) {
+                    std::cout << val.first << " : " << val.second << std::endl;
+                }
                 break;
             case 'e':
                 exit(0);
@@ -93,6 +126,7 @@ int main(int argc, char* argv[]){
     std::cout<<"Commands to set, get and exit"<<std::endl;
     std::cout<<"s <key> <value>"<<std::endl;
     std::cout<<"g <key>"<<std::endl;
+    std::cout<<"p <key>"<<std::endl;
     std::cout<<"e"<<std::endl;
     Run();
 

@@ -3,9 +3,11 @@
 
 #include <grpcpp/grpcpp.h>
 #include "key_value.grpc.pb.h"
+#include "concurrent_trie.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
+using grpc::ServerWriter;
 using grpc::ServerContext;
 using grpc::Status;
 
@@ -15,9 +17,9 @@ using keyvalue::Result;
 using keyvalue::Key;
 using keyvalue::Value;
 
-std::unordered_map<std::string, std::string> map;
+ConcurrentTrie<std::string> map;
 
-class MathServiceImplementation final : public KeyValue::Service {
+class KeyValueServiceImpl final : public KeyValue::Service {
     Status set(
         ServerContext* context, 
         const Entity* request, 
@@ -26,7 +28,7 @@ class MathServiceImplementation final : public KeyValue::Service {
         std::string key = request->key();
         std::string value = request->value();
 
-        map[key] = value;
+        map.insert(key, value);
 
         reply->set_result(true);
 
@@ -40,12 +42,28 @@ class MathServiceImplementation final : public KeyValue::Service {
     ) override {
         std::string key = request->key();
 
-        std::string value = "";
-
-        if(map.find(key) != map.end())
-            value = map[key];
+        std::string value = map.find(key);
 
         reply->set_value(value);
+
+        return Status::OK;
+    } 
+
+    Status getPrefix(
+        ServerContext* context, 
+        const Key* request, 
+        ServerWriter<Entity>* writer
+    ) override {
+        std::string key = request->key();
+
+        std::vector<std::pair<std::string, std::string> > result = map.findAll(key);
+
+        for(std::pair<std::string, std::string> kvp : result) {
+            Entity entity;
+            entity.set_key(kvp.first);
+            entity.set_value(kvp.second);
+            writer->Write(entity);
+        }
 
         return Status::OK;
     } 
@@ -53,7 +71,7 @@ class MathServiceImplementation final : public KeyValue::Service {
 
 void Run() {
     std::string address("0.0.0.0:5000");
-    MathServiceImplementation service;
+    KeyValueServiceImpl service;
 
     ServerBuilder builder;
 
