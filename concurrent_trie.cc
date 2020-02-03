@@ -49,26 +49,24 @@ void ConcurrentTrie<V>::insert(std::string key, V value) {
 
 template <class V>
 V ConcurrentTrie<V>::find(std::string key) {
-    root->read.lock();
     ConcurrentTrieNode *parent = root;
-    ConcurrentTrieNode *child;
     int it = 0;
     while(parent) {
         if(!parent->children[hashChar(key[it])]) {
-            parent->read.unlock();
             return V();
         }
-        child = parent->children[hashChar(key[it])];
-        child->read.lock();
-        parent->read.unlock();
-        parent = child;
+        parent = parent->children[hashChar(key[it])];
         it++;
         if(it == key.size()) {
             break;
         }
     }
-    V value = parent->value;
-    parent->read.unlock();
+    V value = V();
+    if(parent->isEndOfKey) {
+        parent->read.lock();
+        value = parent->value;
+        parent->read.unlock();
+    }
     return value;
 }
 
@@ -76,7 +74,9 @@ template <class V>
 void ConcurrentTrie<V>::getAllValues(ConcurrentTrieNode *node, std::string &key, std::vector<std::pair<std::string, V> > &list) {
     if(!node) return;
     if(node->isEndOfKey) {
+        node->read.lock();
         list.push_back(make_pair(key, node->value));
+        node->read.unlock();
     }
     for(int i = 0; i < ALPHABET_SIZE; i++) {
         ConcurrentTrieNode *child = node->children[i];
@@ -88,19 +88,13 @@ void ConcurrentTrie<V>::getAllValues(ConcurrentTrieNode *node, std::string &key,
 
 template <class V>
 std::vector<std::pair<std::string, V> > ConcurrentTrie<V>::findAll(std::string prefix) {
-    root->read.lock();
     ConcurrentTrieNode *parent = root;
-    ConcurrentTrieNode *child;
     int it = 0;
     while(parent) {
         if(!parent->children[hashChar(prefix[it])]) {
-            parent->read.unlock();
             return std::vector<std::pair<std::string, V> >();
         }
-        child = parent->children[hashChar(prefix[it])];
-        child->read.lock();
-        parent->read.unlock();
-        parent = child;
+        parent = parent->children[hashChar(prefix[it])];
         it++;
         if(it == prefix.size()) {
             break;
@@ -108,7 +102,6 @@ std::vector<std::pair<std::string, V> > ConcurrentTrie<V>::findAll(std::string p
     }
     std::vector<std::pair<std::string, V> > result;
     getAllValues(parent, prefix, result);
-    parent->read.unlock();
     return result;
 }
 
