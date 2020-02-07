@@ -19,8 +19,12 @@ ConcurrentTrie<V>::ConcurrentTrie() {
     root = new ConcurrentTrieNode();
 }
 
-int hashChar(int c) {
-    return c - 'a';
+int hash(char c) {
+    return c;
+}
+
+char deHash(int i) {
+    return i;
 }
 
 template <class V>
@@ -30,10 +34,10 @@ void ConcurrentTrie<V>::insert(std::string key, V value) {
     ConcurrentTrieNode *child;
     int it = 0;
     while(parent) {
-        if(!parent->children[hashChar(key[it])]) {
-            parent->children[hashChar(key[it])] = new ConcurrentTrieNode();
+        if(!parent->children[hash(key[it])]) {
+            parent->children[hash(key[it])] = new ConcurrentTrieNode();
         }
-        child = parent->children[hashChar(key[it])];
+        child = parent->children[hash(key[it])];
         child->read.lock();
         parent->read.unlock();
         parent = child;
@@ -52,10 +56,10 @@ V ConcurrentTrie<V>::find(std::string key) {
     ConcurrentTrieNode *parent = root;
     int it = 0;
     while(parent) {
-        if(!parent->children[hashChar(key[it])]) {
+        if(!parent->children[hash(key[it])]) {
             return V();
         }
-        parent = parent->children[hashChar(key[it])];
+        parent = parent->children[hash(key[it])];
         it++;
         if(it == key.size()) {
             break;
@@ -80,7 +84,7 @@ void ConcurrentTrie<V>::getAllValues(ConcurrentTrieNode *node, std::string &key,
     }
     for(int i = 0; i < ALPHABET_SIZE; i++) {
         ConcurrentTrieNode *child = node->children[i];
-        key.push_back('a' + i);
+        key.push_back(deHash(i));
         getAllValues(child, key, list);
         key.pop_back();
     }
@@ -91,10 +95,10 @@ std::vector<std::pair<std::string, V> > ConcurrentTrie<V>::findAll(std::string p
     ConcurrentTrieNode *parent = root;
     int it = 0;
     while(parent) {
-        if(!parent->children[hashChar(prefix[it])]) {
+        if(!parent->children[hash(prefix[it])]) {
             return std::vector<std::pair<std::string, V> >();
         }
-        parent = parent->children[hashChar(prefix[it])];
+        parent = parent->children[hash(prefix[it])];
         it++;
         if(it == prefix.size()) {
             break;
