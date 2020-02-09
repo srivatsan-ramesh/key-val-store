@@ -1,3 +1,4 @@
+#include "storage.h"
 #include "concurrent_trie.h"
 
 template <class V>
@@ -28,7 +29,7 @@ char deHash(int i) {
 }
 
 template <class V>
-void ConcurrentTrie<V>::insert(std::string key, V value) {
+void ConcurrentTrie<V>::insert(std::string key, V value, bool persist) {
     root->read.lock();
     ConcurrentTrieNode *parent = root;
     ConcurrentTrieNode *child;
@@ -46,6 +47,8 @@ void ConcurrentTrie<V>::insert(std::string key, V value) {
             break;
         }
     }
+    if(persist)
+        persistData(key, value);
     parent->value = value;
     parent->isEndOfKey = true;
     parent->read.unlock();

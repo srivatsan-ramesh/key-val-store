@@ -4,6 +4,7 @@
 #include <grpcpp/grpcpp.h>
 #include "key_value.grpc.pb.h"
 #include "concurrent_trie.h"
+#include "storage.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -70,6 +71,9 @@ class KeyValueServiceImpl final : public KeyValue::Service {
 };
 
 void Run() {
+
+    buildTrieFromFile(map);
+
     std::string address("0.0.0.0:5000");
     KeyValueServiceImpl service;
 

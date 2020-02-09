@@ -14,7 +14,7 @@ all: client server
 client: key_value.pb.o key_value.grpc.pb.o client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-server: concurrent_trie.o key_value.pb.o key_value.grpc.pb.o server.o
+server: concurrent_trie.o storage.o key_value.pb.o key_value.grpc.pb.o server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
