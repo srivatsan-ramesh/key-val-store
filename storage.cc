@@ -74,6 +74,12 @@ void persistData(std::string key, std::string value) {
 	if (fd ==0 || fd==-1)
 	{
 		fd = open(cfile, O_WRONLY | O_APPEND);
+		if(fd==-1){
+			std::ofstream file(FILE_NAME);
+			std::cout<<"New file created";
+			file.close();
+			fd = open(cfile, O_WRONLY | O_APPEND);
+		}
 	}
 	
 	// TODO: Checksum computation and writing
