@@ -11,7 +11,7 @@ GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 all: client server
 
-client: key_value.pb.o key_value.grpc.pb.o client.o
+client: random.o key_value.pb.o key_value.grpc.pb.o client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 server: concurrent_trie.o storage.o key_value.pb.o key_value.grpc.pb.o server.o

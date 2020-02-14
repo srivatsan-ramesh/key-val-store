@@ -1,8 +1,18 @@
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cstdlib>
+#include <chrono> 
+#include <iostream>
+#include <fstream>
 
 #include <grpcpp/grpcpp.h>
+#include <pthread.h>
 #include "key_value.grpc.pb.h"
+#include "random.h"
+
+#define SERVER_ADDRESS "0.0.0.0:5000"
+#define keySize 128
 
 using grpc::Channel;
 using grpc::ClientReader;
@@ -14,6 +24,31 @@ using keyvalue::Entity;
 using keyvalue::Result;
 using keyvalue::Key;
 using keyvalue::Value;
+
+class InputParser{
+    public:
+        InputParser (int &argc, char **argv){
+            for (int i=1; i < argc; ++i)
+                this->tokens.push_back(std::string(argv[i]));
+        }
+        /// @author iain
+        const std::string& getCmdOption(const std::string &option) const{
+            std::vector<std::string>::const_iterator itr;
+            itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
+            if (itr != this->tokens.end() && ++itr != this->tokens.end()){
+                return *itr;
+            }
+            static const std::string empty_string("");
+            return empty_string;
+        }
+        /// @author iain
+        bool cmdOptionExists(const std::string &option) const{
+            return std::find(this->tokens.begin(), this->tokens.end(), option)
+                   != this->tokens.end();
+        }
+    private:
+        std::vector <std::string> tokens;
+};
 
 class KeyValueClient {
     public:
@@ -87,7 +122,7 @@ class KeyValueClient {
 };
 
 void Run() {
-    std::string address("0.0.0.0:5000");
+    std::string address(SERVER_ADDRESS);
     KeyValueClient client(
         grpc::CreateChannel(
             address, 
@@ -122,13 +157,166 @@ void Run() {
     }
 }
 
+struct ClientArgs {
+    int cid;
+    int vsize;
+    int iniWrites;
+    double updateRatio;
+    int measInterval;
+    int noOfIntervals;
+
+    std::string toString() {
+        return std::to_string(cid) + "_" + std::to_string(vsize) + "_" + 
+        std::to_string(iniWrites) + "_" + std::to_string(updateRatio) + "_" + 
+        std::to_string(measInterval) + "_" + std::to_string(noOfIntervals);
+    }
+};
+
+void *startClient(void *args) {
+    ClientArgs *ca = (ClientArgs *)args;
+
+    std::ofstream measureFile;
+    measureFile.open(ca->toString() + ".log");
+
+    if(!measureFile.is_open()) {
+        std::cout<<"Problem with client "<<ca->cid<<'\n';
+        return NULL;
+    }
+
+    std::vector<std::pair<std::string, std::string>>& keyVals = Random::getKeyVals();
+
+    std::string address(SERVER_ADDRESS);
+    KeyValueClient client(
+        grpc::CreateChannel(
+            address, 
+            grpc::InsecureChannelCredentials()
+        )
+    );
+
+    while(ca->noOfIntervals--) {
+        int indices[ca->measInterval], rw[ca->measInterval];
+        for(int i = 0; i < ca->measInterval; i++) {
+            indices[i] = rand()%(keyVals.size());
+            rw[i] = (rand() < (RAND_MAX*(ca->updateRatio)));
+        }
+
+        int ops = 0;
+
+        auto t1 = std::chrono::high_resolution_clock::now();
+
+        for(int i = 0; i < ca->measInterval; i++) {
+            if(rw[i]) {
+                ops += client.set(keyVals[indices[i]].first, keyVals[indices[i]].second);
+            }
+            else {
+                ops += (client.get(keyVals[indices[i]].first).size() != 0);
+            }
+        }
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+
+        measureFile<<ops<<' '<<duration<<'\n';
+
+    }
+
+    measureFile.close();
+    return NULL;
+}
+
+void initServerClient(int iniWrites, int valueSize) {
+
+    std::vector<std::pair<std::string, std::string>>& keyVals = Random::generateRandomKeyVals(keySize, valueSize, iniWrites);
+
+    std::string address(SERVER_ADDRESS);
+    KeyValueClient client(
+        grpc::CreateChannel(
+            address, 
+            grpc::InsecureChannelCredentials()
+        )
+    );
+    int ops = 0;
+    for(int i = 0; i < iniWrites; i++) {
+        ops += client.set(keyVals[i].first, keyVals[i].second);
+    }
+
+    std::cout<<"Successfully stored "<<ops<<" key value pairs in the server\n";
+}
+
 int main(int argc, char* argv[]){
-    std::cout<<"Commands to set, get and exit"<<std::endl;
-    std::cout<<"s <key> <value>"<<std::endl;
-    std::cout<<"g <key>"<<std::endl;
-    std::cout<<"p <key>"<<std::endl;
-    std::cout<<"e"<<std::endl;
-    Run();
+    InputParser input(argc, argv);
+
+    if(input.cmdOptionExists("-h")){
+        std::cout<<"Usage ./client -v <size_of_value(10b,10k,10m)> -c <no_of_clients> -u <fraction_of_updates> -w <initial_no_rand_writes> -i <measurement_interval> -n <no_of_measurements>\n";
+        return 0;
+    }
+
+    int valueSize = 4*1024;
+
+    if(input.cmdOptionExists("-v")){
+        std::string value = input.getCmdOption("-v");
+        char multiplier = value.back();
+        value.pop_back();
+        valueSize = stoi(value);
+        switch(multiplier) {
+            case 'g': valueSize *= 1024;
+            case 'm': valueSize *= 1024;
+            case 'k': valueSize *= 1024;
+        }
+    }
+
+    int noOfClients = 1;
+
+    if(input.cmdOptionExists("-c")){
+        noOfClients = stoi(input.getCmdOption("-c"));
+    }
+
+    double updateRatio = 0;
+
+    if(input.cmdOptionExists("-u")){
+        updateRatio = stod(input.getCmdOption("-u"));
+    }
+
+    int iniWrites = 100;
+
+    if(input.cmdOptionExists("-w")){
+        iniWrites = stoi(input.getCmdOption("-w"));
+    }
+
+    int measInterval = 100;
+
+    if(input.cmdOptionExists("-i")){
+        measInterval = stoi(input.getCmdOption("-i"));
+    }
+
+    int noOfIntervals = 10;
+
+    if(input.cmdOptionExists("-n")){
+        noOfIntervals = stoi(input.getCmdOption("-n"));
+    }
+
+    initServerClient(iniWrites, valueSize);
+
+    pthread_t clients[noOfClients];
+
+    ClientArgs cargs[noOfClients];
+
+    for(int i = 0; i < noOfClients; i++) {
+        cargs[i].cid = i;
+        cargs[i].vsize = valueSize;
+        cargs[i].iniWrites = iniWrites;
+        cargs[i].updateRatio = updateRatio;
+        cargs[i].measInterval = measInterval;
+        cargs[i].noOfIntervals = noOfIntervals;
+        if (pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
+            std::cout<<"Problem starting client "<<i<<'\n';
+        }
+    }
+
+    for(int i = 0; i < noOfClients; i++) {
+        pthread_join(clients[i], NULL); 
+    }
 
     return 0;
 }
