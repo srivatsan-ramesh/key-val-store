@@ -203,10 +203,13 @@ void *startClient(void *args) {
 
     int tops = 0;
 
-    while(ca->noOfIntervals--) {
+    for(int x = 0; x < ca->noOfIntervals; x++) {
         int indices[ca->measInterval], rw[ca->measInterval];
         for(int i = 0; i < ca->measInterval; i++) {
-            indices[i] = rand()%(keyVals.size());
+            if(ca->printStats)
+                indices[i] = rand()%(keyVals.size());
+            else 
+                indices[i] = (ca->cid)*(ca->noOfIntervals)*(ca->measInterval) + x*(ca->measInterval) + i;
             rw[i] = (rand() < (RAND_MAX*(ca->updateRatio)));
         }
 
