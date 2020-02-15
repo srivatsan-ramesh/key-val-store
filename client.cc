@@ -164,6 +164,13 @@ struct ClientArgs {
     double updateRatio;
     int measInterval;
     int noOfIntervals;
+    bool printStats;
+
+    ClientArgs() {}
+
+    ClientArgs(int cid, int vsize, int iniWrites, double updateRatio, int measInterval, 
+    int noOfIntervals, bool printStats) : cid(cid), vsize(vsize), iniWrites(iniWrites), 
+    updateRatio(updateRatio), measInterval(measInterval), noOfIntervals(noOfIntervals), printStats(printStats) {}
 
     std::string toString() {
         return std::to_string(cid) + "_" + std::to_string(vsize) + "_" + 
@@ -174,13 +181,14 @@ struct ClientArgs {
 
 void *startClient(void *args) {
     ClientArgs *ca = (ClientArgs *)args;
-
     std::ofstream measureFile;
-    measureFile.open(ca->toString() + ".log");
+    if(ca->printStats) {
+        measureFile.open(ca->toString() + ".log");
 
-    if(!measureFile.is_open()) {
-        std::cout<<"Problem with client "<<ca->cid<<'\n';
-        return NULL;
+        if(!measureFile.is_open()) {
+            std::cout<<"Problem with client "<<ca->cid<<'\n';
+            return NULL;
+        }
     }
 
     std::vector<std::pair<std::string, std::string>>& keyVals = Random::getKeyVals();
@@ -192,6 +200,8 @@ void *startClient(void *args) {
             grpc::InsecureChannelCredentials()
         )
     );
+
+    int tops = 0;
 
     while(ca->noOfIntervals--) {
         int indices[ca->measInterval], rw[ca->measInterval];
@@ -216,31 +226,44 @@ void *startClient(void *args) {
         auto t2 = std::chrono::high_resolution_clock::now();
 
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        if(ca->printStats) {
+            measureFile<<ops<<' '<<duration<<'\n';
+        }
 
-        measureFile<<ops<<' '<<duration<<'\n';
+        tops += ops;
 
     }
 
-    measureFile.close();
-    return NULL;
+    if(ca->printStats)
+        measureFile.close();
+
+    int * ret = new int;
+    *ret = tops;
+    return (void *)ret;
 }
 
-void initServerClient(int iniWrites, int valueSize) {
+void initServerClient(int iniWrites, int valueSize, int noOfClients) {
 
     std::vector<std::pair<std::string, std::string>>& keyVals = Random::generateRandomKeyVals(keySize, valueSize, iniWrites);
 
-    std::string address(SERVER_ADDRESS);
-    KeyValueClient client(
-        grpc::CreateChannel(
-            address, 
-            grpc::InsecureChannelCredentials()
-        )
-    );
-    int ops = 0;
-    for(int i = 0; i < iniWrites; i++) {
-        ops += client.set(keyVals[i].first, keyVals[i].second);
+    pthread_t clients[noOfClients];
+
+    ClientArgs cargs[noOfClients];
+
+    for(int i = 0; i < noOfClients; i++) {
+        cargs[i] = ClientArgs(i, valueSize, 0, 1, iniWrites/noOfClients, 1, false);
+        if (pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
+            std::cout<<"Problem starting client "<<i<<" for initial writes\n";
+        }
     }
 
+    int ops = 0;
+
+    void *ret;
+    for(int i = 0; i < noOfClients; i++) {
+        pthread_join(clients[i], &ret); 
+        ops += *(int *)ret;
+    }
     std::cout<<"Successfully stored "<<ops<<" key value pairs in the server\n";
 }
 
@@ -296,19 +319,14 @@ int main(int argc, char* argv[]){
         noOfIntervals = stoi(input.getCmdOption("-n"));
     }
 
-    initServerClient(iniWrites, valueSize);
+    initServerClient(iniWrites, valueSize, noOfClients);
 
     pthread_t clients[noOfClients];
 
     ClientArgs cargs[noOfClients];
 
     for(int i = 0; i < noOfClients; i++) {
-        cargs[i].cid = i;
-        cargs[i].vsize = valueSize;
-        cargs[i].iniWrites = iniWrites;
-        cargs[i].updateRatio = updateRatio;
-        cargs[i].measInterval = measInterval;
-        cargs[i].noOfIntervals = noOfIntervals;
+        cargs[i] = ClientArgs(i, valueSize, iniWrites, updateRatio, measInterval, noOfIntervals, true);
         if (pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
             std::cout<<"Problem starting client "<<i<<'\n';
         }
