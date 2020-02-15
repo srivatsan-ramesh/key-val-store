@@ -1,7 +1,9 @@
 #include <string>
 #include <unordered_map>
+#include <chrono> 
 
 #include <grpcpp/grpcpp.h>
+
 #include "key_value.grpc.pb.h"
 #include "concurrent_trie.h"
 #include "storage.h"
@@ -72,6 +74,8 @@ class KeyValueServiceImpl final : public KeyValue::Service {
 
 void Run() {
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+
     buildTrieFromFile(map);
 
     std::string address("0.0.0.0:5000");
@@ -83,7 +87,13 @@ void Run() {
     builder.RegisterService(&service);
 
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    std::cout << "Server listening on port: " << address << std::endl;
+    std::cout<<"Server listening on port: "<<address<<std::endl;
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+
+    std::cout<<"Server took "<<duration/1000.0<<"ms to start\n";
 
     server->Wait();
 }
