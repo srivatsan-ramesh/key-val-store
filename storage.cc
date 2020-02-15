@@ -8,13 +8,13 @@ const std::string FILE_NAME = "data.log";
 
 // djb2 hashing
 uint32_t checksum(std::string str) {
-  uint32_t hashVal = 5381;
+  	uint32_t hashVal = 5381;
   
-  for(std::string::size_type i = 0; i < str.size(); ++i) {
-    hashVal = ((hashVal << 5) + hashVal) + str[i];
-}
+  	for(std::string::size_type i = 0; i < str.size(); ++i) {
+    	hashVal = ((hashVal << 5) + hashVal) + str[i];
+	}
 
-  return hashVal;
+  	return hashVal;
 }
 
 void buildTrieFromFile(ConcurrentTrie<std::string> &map) {
@@ -47,12 +47,16 @@ void buildTrieFromFile(ConcurrentTrie<std::string> &map) {
 		
 		map.insert(key, value, false);
 	}
+
+	file.close();
+
+	std::ifstream file2(FILE_NAME);
 	
 	// Inserting newline at EOF if not present
-	file.seekg(-1, std::ios_base::end);
+	file2.seekg(-1, std::ios_base::end);
 	char c;
-	file.get(c);
-	file.close();
+	file2.get(c);
+	file2.close();
 	if(c != '\n'){
 	    outfile.open(FILE_NAME, std::ios_base::app);
 	    outfile<<'\n';
@@ -81,8 +85,6 @@ void persistData(std::string key, std::string value) {
 
 	// Convert string to be written to char*	
 	std::string str = key + " " + value + " " + std::to_string(hashVal) + "\n";
-	// Convert string to be written to char*	
-	std::string str = key + " " + value + "\n";
 	char cstr[str.size() + 1];
 	strcpy(cstr, str.c_str());
 
