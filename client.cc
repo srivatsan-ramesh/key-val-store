@@ -25,6 +25,8 @@ using keyvalue::Result;
 using keyvalue::Key;
 using keyvalue::Value;
 
+pthread_barrier_t mybarrier;
+
 class InputParser{
     public:
         InputParser (int &argc, char **argv){
@@ -241,6 +243,7 @@ void *startClient(void *args) {
 
         tops += ops;
 
+        pthread_barrier_wait(&mybarrier);
     }
 
     if(ca->printStats)
@@ -328,6 +331,8 @@ int main(int argc, char* argv[]){
         noOfIntervals = stoi(input.getCmdOption("-n"));
     }
 
+    pthread_barrier_init(&mybarrier, NULL, noOfClients);
+
     initServerClient(iniWrites, valueSize, noOfClients);
 
     pthread_t clients[noOfClients];
@@ -335,8 +340,8 @@ int main(int argc, char* argv[]){
     ClientArgs cargs[noOfClients];
 
     for(int i = 0; i < noOfClients; i++) {
-        cargs[i] = ClientArgs(i, valueSize, iniWrites, updateRatio, measInterval, noOfIntervals, true);
-        if (pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
+        cargs[i] = ClientArgs(i, valueSize, iniWrites, 0, measInterval, noOfIntervals, true);
+        if(pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
             std::cout<<"Problem starting client "<<i<<'\n';
         }
     }
@@ -344,6 +349,23 @@ int main(int argc, char* argv[]){
     for(int i = 0; i < noOfClients; i++) {
         pthread_join(clients[i], NULL); 
     }
+
+    pthread_t clients2[noOfClients];
+
+    ClientArgs cargs2[noOfClients];
+
+    for(int i = 0; i < noOfClients; i++) {
+        cargs2[i] = ClientArgs(i, valueSize, iniWrites, 0.5, measInterval, noOfIntervals, true);
+        if(pthread_create(&clients2[i], NULL, &startClient, (void *)&cargs2[i]) != 0) {
+            std::cout<<"Problem starting client "<<i<<'\n';
+        }
+    }
+
+    for(int i = 0; i < noOfClients; i++) {
+        pthread_join(clients2[i], NULL); 
+    }
+
+    pthread_barrier_destroy(&mybarrier);
 
     return 0;
 }
