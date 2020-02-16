@@ -15,9 +15,10 @@ std::vector<std::pair<std::string, std::string>>& Random::generateRandomKeyVals(
         srand(time(NULL));
     }
     keyVals.clear();
-    while(keyVals.size() < n) {
-        keyVals.push_back(make_pair(generateRandomString(keySize), generateRandomString(valSize)));
-    }
+    // while(keyVals.size() < n) {
+    //     keyVals.push_back(make_pair(generateRandomString(keySize), generateRandomString(valSize)));
+    // }
+    keyVals = std::vector<std::pair<std::string, std::string>>(n);
     return keyVals;
 }
 

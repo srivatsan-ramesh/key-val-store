@@ -70,7 +70,7 @@ class KeyValueClient {
             return reply.result();
         } else {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-            return -1;
+            return false;
         }
     }
 
@@ -193,11 +193,15 @@ void *startClient(void *args) {
 
     std::vector<std::pair<std::string, std::string>>& keyVals = Random::getKeyVals();
 
+    grpc::ChannelArguments ch_args;
+    ch_args.SetMaxReceiveMessageSize(-1);
+
     std::string address(SERVER_ADDRESS);
     KeyValueClient client(
-        grpc::CreateChannel(
+        grpc::CreateCustomChannel(
             address, 
-            grpc::InsecureChannelCredentials()
+            grpc::InsecureChannelCredentials(),
+            ch_args
         )
     );
 
@@ -206,11 +210,13 @@ void *startClient(void *args) {
     for(int x = 0; x < ca->noOfIntervals; x++) {
         int indices[ca->measInterval], rw[ca->measInterval];
         for(int i = 0; i < ca->measInterval; i++) {
-            if(ca->printStats)
+            if(ca->printStats) 
                 indices[i] = rand()%(keyVals.size());
-            else 
+            else  {
                 indices[i] = (ca->cid)*(ca->noOfIntervals)*(ca->measInterval) + x*(ca->measInterval) + i;
-            rw[i] = (rand() < (RAND_MAX*(ca->updateRatio)));
+                keyVals[indices[i]] = make_pair(Random::generateRandomString(keySize), Random::generateRandomString(ca->vsize));
+            }
+            rw[i] = (rand() <= (RAND_MAX*(ca->updateRatio)));
         }
 
         int ops = 0;
