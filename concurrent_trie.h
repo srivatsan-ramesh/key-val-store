@@ -5,7 +5,7 @@
 #include <vector>
 #include <mutex>
 
-#define ALPHABET_SIZE 256
+#define ALPHABET_SIZE 94
 
 template <class V>
 class ConcurrentTrie {

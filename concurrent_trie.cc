@@ -21,11 +21,11 @@ ConcurrentTrie<V>::ConcurrentTrie() {
 }
 
 int hash(char c) {
-    return c;
+    return c - 33;
 }
 
 char deHash(int i) {
-    return i;
+    return i + 33;
 }
 
 template <class V>
