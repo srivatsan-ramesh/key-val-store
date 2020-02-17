@@ -24,9 +24,15 @@ Run App
 -------
 
 ```sh
-./server
-./client -v 4k -c 10 -u 1 -w 10000 -i 10000 -n 1
+./kvserver
+./kvclient -v 4k -c 10 -u 0.5 -w 10000 -i 10000 -n 1
 ```
+
+Output
+------
+
+* Server will output startup time
+* Each client thread will create a .log file with details on number of operations performed and the time taken
 
 Args
 ----

@@ -9,12 +9,12 @@ CXXFLAGS += -std=c++11
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
-all: client server
+all: kvclient kvserver
 
-client: random.o key_value.pb.o key_value.grpc.pb.o client.o
+kvclient: random.o key_value.pb.o key_value.grpc.pb.o client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-server: concurrent_trie.o storage.o key_value.pb.o key_value.grpc.pb.o server.o
+kvserver: concurrent_trie.o storage.o key_value.pb.o key_value.grpc.pb.o server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
@@ -24,4 +24,4 @@ server: concurrent_trie.o storage.o key_value.pb.o key_value.grpc.pb.o server.o
 	protoc --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h client server
+	rm -f *.o *.pb.cc *.pb.h kvclient kvserver

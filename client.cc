@@ -134,6 +134,11 @@ void Run() {
 
     bool response;
     while(1) {
+        std::cout<<"Commands to set = s, get = g, getPrefix = p and exit = e"<<std::endl;
+        std::cout<<"s <key> <value>"<<std::endl;
+        std::cout<<"g <key>"<<std::endl;
+        std::cout<<"p <key>"<<std::endl;
+        std::cout<<"e"<<std::endl;
         char c;
         std::cin>>c;
         std::string key, value;
@@ -340,7 +345,7 @@ int main(int argc, char* argv[]){
     ClientArgs cargs[noOfClients];
 
     for(int i = 0; i < noOfClients; i++) {
-        cargs[i] = ClientArgs(i, valueSize, iniWrites, 0, measInterval, noOfIntervals, true);
+        cargs[i] = ClientArgs(i, valueSize, iniWrites, updateRatio, measInterval, noOfIntervals, true);
         if(pthread_create(&clients[i], NULL, &startClient, (void *)&cargs[i]) != 0) {
             std::cout<<"Problem starting client "<<i<<'\n';
         }
@@ -350,22 +355,9 @@ int main(int argc, char* argv[]){
         pthread_join(clients[i], NULL); 
     }
 
-    pthread_t clients2[noOfClients];
-
-    ClientArgs cargs2[noOfClients];
-
-    for(int i = 0; i < noOfClients; i++) {
-        cargs2[i] = ClientArgs(i, valueSize, iniWrites, 0.5, measInterval, noOfIntervals, true);
-        if(pthread_create(&clients2[i], NULL, &startClient, (void *)&cargs2[i]) != 0) {
-            std::cout<<"Problem starting client "<<i<<'\n';
-        }
-    }
-
-    for(int i = 0; i < noOfClients; i++) {
-        pthread_join(clients2[i], NULL); 
-    }
-
     pthread_barrier_destroy(&mybarrier);
+
+    Run();
 
     return 0;
 }
